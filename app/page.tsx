@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { BadgePoundSterling, Banknote, Building2, CheckCircle2, CircleAlert, HomeIcon, Landmark, RefreshCcw, TrendingUp } from 'lucide-react';
+import { type ReactNode, useMemo, useState } from 'react';
+import { BadgePoundSterling, Banknote, Building2, CheckCircle2, CircleAlert, FileDown, HomeIcon, Landmark, RefreshCcw, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -32,7 +32,7 @@ function NumberField({ label, value, onChange, suffix, step = 1 }: { label: stri
   return <label className="field-row"><span>{label}</span><span className="input-shell"><Input type="number" value={Number.isFinite(value) ? value : 0} step={step} min={0} onChange={(e) => onChange(Number(e.target.value))} aria-label={label} />{suffix && <small>{suffix}</small>}</span></label>;
 }
 
-function Metric({ label, value, secondary, icon: Icon, featured = false }: { label: string; value: string; secondary?: string; icon: typeof HomeIcon; featured?: boolean }) {
+function Metric({ label, value, secondary, icon: Icon, featured = false }: { label: string; value: string; secondary?: ReactNode; icon: typeof HomeIcon; featured?: boolean }) {
   return <div className={`metric ${featured ? 'metric-featured' : ''}`}><div className="metric-icon"><Icon /></div><div><p>{label}</p><strong>{value}</strong>{secondary && <small>{secondary}</small>}</div></div>;
 }
 
@@ -64,7 +64,7 @@ export default function Home() {
   const reset = () => { setProject('Oval Village'); setUnit('D1.4.4'); setArea(764); setOriginalPrice(935_204.08); setDiscount(2); setExchangeRate(9.836); setResident(true); setPurchaseType('main'); setLoanRatio(50); setInterestRate(4.85); setLoanYears(30); setRepaymentType('repayment'); setDeposit(5_000); setLegalFee(3_000); setOtherFee(1_000); setRegistryFee(500); setServiceRate(6.5); setGroundRent(0); setMonthlyRent(3_243); setManagementRate(12); setPayments([10, 10, 5, 0, 0, 75]); };
 
   return <main>
-    <header className="topbar"><div className="brand-mark"><Building2 /></div><div><p className="eyebrow">UK PROPERTY PLANNER</p><h1>英国买房测算工具</h1></div><Button variant="outline" onClick={reset}><RefreshCcw />恢复 Oval 示例</Button></header>
+    <header className="topbar"><div className="brand-mark"><Building2 /></div><div><p className="eyebrow">UK PROPERTY PLANNER</p><h1>英国买房测算工具</h1></div><div className="top-actions"><Button variant="outline" onClick={() => window.print()}><FileDown />导出 PDF</Button><Button variant="outline" onClick={reset}><RefreshCcw />恢复 Oval 示例</Button></div></header>
     <div className="page-shell">
       <section className="intro"><div><span className="status-pill">Oval 参考版 · 即时计算</span><h2>把房价、税费、贷款与租金<br />放进同一张决策图里</h2></div><p>修改左侧参数，结果与付款计划会即时更新。汇率口径为 <b>1 GBP = X CNY</b>。</p></section>
       <div className="workspace">
@@ -82,7 +82,7 @@ export default function Home() {
         </aside>
         <section className="results-panel">
           <div className="results-head"><div><p className="eyebrow">LIVE ESTIMATE</p><h3>{project || '未命名项目'} · {unit || '未填写房号'}</h3></div><span>{currency.format(result.price)}</span></div>
-          <div className="metric-grid"><Metric label="购房总成本" value={currency.format(result.totalCost)} secondary={cny.format(result.totalCost * exchangeRate)} icon={BadgePoundSterling} featured /><Metric label="需投入现金" value={currency.format(result.cashNeeded)} secondary={cny.format(result.cashNeeded * exchangeRate)} icon={Banknote} featured /><Metric label="印花税 SDLT" value={currency.format(result.sdlt)} secondary={purchaseType === 'first' && result.price <= 500000 ? '首套优惠口径' : '现行住宅税率'} icon={Landmark} /><Metric label="预计月供" value={currency.format(result.monthlyMortgage)} secondary={repaymentType === 'repayment' ? '本息同还' : '只还利息'} icon={HomeIcon} /><Metric label="净租金回报率" value={percent.format(result.netYield)} secondary={`毛回报 ${percent.format(result.grossYield)}`} icon={TrendingUp} /><Metric label="税前年净现金流" value={currency.format(result.netCash)} secondary={`现金回报 ${percent.format(result.cashReturn)}`} icon={Banknote} /></div>
+          <div className="metric-grid"><Metric label="购房总成本" value={currency.format(result.totalCost)} secondary={<span className="cost-breakdown"><span>房款 <b>{currency.format(result.price)}</b></span><span>其他款项合计 <b>{currency.format(result.totalCost - result.price)}</b></span></span>} icon={BadgePoundSterling} featured /><Metric label="需投入现金" value={currency.format(result.cashNeeded)} secondary={cny.format(result.cashNeeded * exchangeRate)} icon={Banknote} featured /><Metric label="印花税 SDLT" value={currency.format(result.sdlt)} secondary={purchaseType === 'first' && result.price <= 500000 ? '首套优惠口径' : '现行住宅税率'} icon={Landmark} /><Metric label="预计月供" value={currency.format(result.monthlyMortgage)} secondary={repaymentType === 'repayment' ? '本息同还' : '只还利息'} icon={HomeIcon} /><Metric label="净租金回报率" value={percent.format(result.netYield)} secondary={`毛回报 ${percent.format(result.grossYield)}`} icon={TrendingUp} /><Metric label="税前年净现金流" value={currency.format(result.netCash)} secondary={`现金回报 ${percent.format(result.cashReturn)}`} icon={Banknote} /></div>
           <div className="cashflow-strip"><div><span>年度租金</span><b>{currency.format(result.annualRent)}</b></div><i>−</i><div><span>运营成本</span><b>{currency.format(result.annualRent - result.noi)}</b></div><i>−</i><div><span>年度房贷</span><b>{currency.format(result.annualDebt)}</b></div><i>=</i><div className={result.netCash >= 0 ? 'positive' : 'negative'}><span>净现金流</span><b>{currency.format(result.netCash)}</b></div></div>
         </section>
       </div>
@@ -92,5 +92,13 @@ export default function Home() {
       </section>
       <footer><p>用于初步比较，不构成税务、法律、贷款或投资建议。复杂交易请由英国律师、税务师及贷款顾问复核。</p><a href="https://www.gov.uk/government/publications/budget-2025-overview-of-tax-legislation-and-rates-ootlar/annex-a-rates-and-allowances" target="_blank" rel="noreferrer">HMRC 税率来源</a></footer>
     </div>
+    <section className="print-report">
+      <div className="print-report-head"><div><p>UK PROPERTY PLANNER</p><h2>英国买房测算报告</h2></div><span>{new Date().toLocaleDateString('zh-CN')}</span></div>
+      <div className="print-property"><h3>{project || '未命名项目'} · {unit || '未填写房号'}</h3><p>室内面积 {area.toLocaleString()} ft² · UK Resident：{resident ? '是' : '否'} · {purchaseType === 'first' ? '首套（符合优惠）' : purchaseType === 'additional' ? '额外住房 / 投资房' : '唯一住房 / 置换'}</p></div>
+      <div className="print-section"><h4>购房成本</h4><div className="print-table"><span>房款</span><b>{currency.format(result.price)}</b><span>其他款项合计</span><b>{currency.format(result.totalCost - result.price)}</b><span>其中：印花税 SDLT</span><b>{currency.format(result.sdlt)}</b><span className="print-total">购房总成本</span><b className="print-total">{currency.format(result.totalCost)}</b></div></div>
+      <div className="print-section"><h4>资金与贷款</h4><div className="print-table"><span>贷款金额</span><b>{currency.format(result.loan)}</b><span>需投入现金</span><b>{currency.format(result.cashNeeded)}</b><span>预计月供</span><b>{currency.format(result.monthlyMortgage)}</b><span>贷款条件</span><b>{loanRatio}% · {interestRate}% · {loanYears} 年</b></div></div>
+      <div className="print-section"><h4>租金回报</h4><div className="print-table"><span>年度租金</span><b>{currency.format(result.annualRent)}</b><span>净经营收益</span><b>{currency.format(result.noi)}</b><span>毛 / 净回报率</span><b>{percent.format(result.grossYield)} / {percent.format(result.netYield)}</b><span>税前年净现金流</span><b>{currency.format(result.netCash)}</b></div></div>
+      <p className="print-note">本报告用于初步比较，不构成税务、法律、贷款或投资建议。复杂交易请由英国律师、税务师及贷款顾问复核。</p>
+    </section>
   </main>;
 }
