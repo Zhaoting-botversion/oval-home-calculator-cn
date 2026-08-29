@@ -61,6 +61,14 @@ export default function Home() {
 
   const paymentTotal = payments.reduce((sum, item) => sum + item, 0); const finalPayment = result.price * payments[5] / 100;
   const paymentOk = Math.abs(paymentTotal - 100) < 0.001; const loanOk = result.loan <= finalPayment;
+  const serviceCharge = area * serviceRate;
+  const managementFee = result.annualRent * managementRate / 100;
+  const operatingCosts = serviceCharge + groundRent + managementFee;
+  const purchaseTypeLabel = purchaseType === 'first' ? '首套（符合优惠）' : purchaseType === 'additional' ? '额外住房 / 投资房' : '唯一住房 / 置换';
+  const repaymentTypeLabel = repaymentType === 'interest' ? '只还利息' : '等额本息';
+  const paymentDetails = payments.map((ratio, index) => { const due = result.price * ratio / 100; const loanApplied = index === 5 ? Math.min(result.loan, due) : 0; const cash = Math.max(0, due - loanApplied - (index === 0 ? deposit : 0)); return { label: index === 5 ? '尾款' : `第 ${index + 1} 笔`, ratio, due, loanApplied, cash }; });
+  const paymentCashTotal = deposit + paymentDetails.reduce((sum, item) => sum + item.cash, 0);
+  const fundingOk = Math.abs(paymentCashTotal + result.loan - result.price) < 1;
   const reset = () => { setProject('Oval Village'); setUnit('D1.4.4'); setArea(764); setOriginalPrice(935_204.08); setDiscount(2); setExchangeRate(9.836); setResident(true); setPurchaseType('main'); setLoanRatio(50); setInterestRate(4.85); setLoanYears(30); setRepaymentType('repayment'); setDeposit(5_000); setLegalFee(3_000); setOtherFee(1_000); setRegistryFee(500); setServiceRate(6.5); setGroundRent(0); setMonthlyRent(3_243); setManagementRate(12); setPayments([10, 10, 5, 0, 0, 75]); };
 
   return <main>
@@ -93,12 +101,64 @@ export default function Home() {
       <footer><p>用于初步比较，不构成税务、法律、贷款或投资建议。复杂交易请由英国律师、税务师及贷款顾问复核。</p><a href="https://www.gov.uk/government/publications/budget-2025-overview-of-tax-legislation-and-rates-ootlar/annex-a-rates-and-allowances" target="_blank" rel="noreferrer">HMRC 税率来源</a></footer>
     </div>
     <section className="print-report">
-      <div className="print-report-head"><div><p>UK PROPERTY PLANNER</p><h2>英国买房测算报告</h2></div><span>{new Date().toLocaleDateString('zh-CN')}</span></div>
-      <div className="print-property"><h3>{project || '未命名项目'} · {unit || '未填写房号'}</h3><p>室内面积 {area.toLocaleString()} ft² · UK Resident：{resident ? '是' : '否'} · {purchaseType === 'first' ? '首套（符合优惠）' : purchaseType === 'additional' ? '额外住房 / 投资房' : '唯一住房 / 置换'}</p></div>
-      <div className="print-section"><h4>购房成本</h4><div className="print-table"><span>房款</span><b>{currency.format(result.price)}</b><span>其他款项合计</span><b>{currency.format(result.totalCost - result.price)}</b><span>其中：印花税 SDLT</span><b>{currency.format(result.sdlt)}</b><span className="print-total">购房总成本</span><b className="print-total">{currency.format(result.totalCost)}</b></div></div>
-      <div className="print-section"><h4>资金与贷款</h4><div className="print-table"><span>贷款金额</span><b>{currency.format(result.loan)}</b><span>需投入现金</span><b>{currency.format(result.cashNeeded)}</b><span>预计月供</span><b>{currency.format(result.monthlyMortgage)}</b><span>贷款条件</span><b>{loanRatio}% · {interestRate}% · {loanYears} 年</b></div></div>
-      <div className="print-section"><h4>租金回报</h4><div className="print-table"><span>年度租金</span><b>{currency.format(result.annualRent)}</b><span>净经营收益</span><b>{currency.format(result.noi)}</b><span>毛 / 净回报率</span><b>{percent.format(result.grossYield)} / {percent.format(result.netYield)}</b><span>税前年净现金流</span><b>{currency.format(result.netCash)}</b></div></div>
-      <p className="print-note">本报告用于初步比较，不构成税务、法律、贷款或投资建议。复杂交易请由英国律师、税务师及贷款顾问复核。</p>
+      <div className="print-report-head"><div><p>UK PROPERTY PLANNER · FULL CALCULATION</p><h2>英国买房完整测算报告</h2></div><span>生成日期：{new Date().toLocaleDateString('zh-CN')}</span></div>
+      <div className="print-property"><div><p>测算项目</p><h3>{project || '未命名项目'} · {unit || '未填写房号'}</h3></div><div className="print-property-total"><span>购房总成本</span><b>{currency.format(result.totalCost)}</b><small>{cny.format(result.totalCost * exchangeRate)}</small></div></div>
+
+      <div className="print-section"><h4>01 · 房产与买家信息</h4><table className="print-data-table compact"><tbody>
+        <tr><th>项目名称</th><td>{project || '—'}</td><th>房号</th><td>{unit || '—'}</td></tr>
+        <tr><th>室内面积</th><td>{area.toLocaleString()} ft²</td><th>英镑兑人民币</th><td>1 GBP = {exchangeRate.toFixed(3)} CNY</td></tr>
+        <tr><th>房屋原价</th><td>{currency.format(originalPrice)}</td><th>折扣率</th><td>{discount.toFixed(2)}%</td></tr>
+        <tr><th>折后房价</th><td>{currency.format(result.price)}</td><th>人民币参考</th><td>{cny.format(result.price * exchangeRate)}</td></tr>
+        <tr><th>UK Resident</th><td>{resident ? '是' : '否'}</td><th>购房性质</th><td>{purchaseTypeLabel}</td></tr>
+      </tbody></table></div>
+
+      <div className="print-section"><h4>02 · 购房成本明细</h4><table className="print-data-table amounts"><thead><tr><th>项目</th><th>计算口径</th><th>英镑金额</th><th>人民币参考</th></tr></thead><tbody>
+        <tr><td>房款</td><td>原价 ×（1 − 折扣率）</td><td>{currency.format(result.price)}</td><td>{cny.format(result.price * exchangeRate)}</td></tr>
+        <tr><td>印花税 SDLT</td><td>按买家身份及购房性质计算</td><td>{currency.format(result.sdlt)}</td><td>{cny.format(result.sdlt * exchangeRate)}</td></tr>
+        <tr><td>律师费及 VAT</td><td>用户输入</td><td>{currency.format(legalFee)}</td><td>{cny.format(legalFee * exchangeRate)}</td></tr>
+        <tr><td>其他购房杂费</td><td>用户输入</td><td>{currency.format(otherFee)}</td><td>{cny.format(otherFee * exchangeRate)}</td></tr>
+        <tr><td>土地注册费</td><td>用户输入</td><td>{currency.format(registryFee)}</td><td>{cny.format(registryFee * exchangeRate)}</td></tr>
+        <tr className="subtotal"><td>其他款项合计</td><td>印花税 + 律师费 + 杂费 + 注册费</td><td>{currency.format(result.totalCost - result.price)}</td><td>{cny.format((result.totalCost - result.price) * exchangeRate)}</td></tr>
+        <tr className="grand-total"><td>购房总成本</td><td>房款 + 其他款项合计</td><td>{currency.format(result.totalCost)}</td><td>{cny.format(result.totalCost * exchangeRate)}</td></tr>
+      </tbody></table></div>
+
+      <div className="print-section"><h4>03 · 贷款与资金安排</h4><table className="print-data-table compact"><tbody>
+        <tr><th>贷款比例</th><td>{loanRatio.toFixed(2)}%</td><th>贷款金额</th><td>{currency.format(result.loan)}</td></tr>
+        <tr><th>贷款利率</th><td>{interestRate.toFixed(2)}%</td><th>贷款年限</th><td>{loanYears} 年</td></tr>
+        <tr><th>还款方式</th><td>{repaymentTypeLabel}</td><th>预计月供</th><td>{currency.format(result.monthlyMortgage)}</td></tr>
+        <tr><th>年度偿债</th><td>{currency.format(result.annualDebt)}</td><th>需投入现金</th><td>{currency.format(result.cashNeeded)}</td></tr>
+        <tr><th>人民币贷款参考</th><td>{cny.format(result.loan * exchangeRate)}</td><th>人民币现金参考</th><td>{cny.format(result.cashNeeded * exchangeRate)}</td></tr>
+      </tbody></table></div>
+
+      <div className="print-section"><h4>04 · 持有成本与租赁假设</h4><table className="print-data-table amounts"><thead><tr><th>项目</th><th>输入 / 计算口径</th><th>月度金额</th><th>年度金额</th></tr></thead><tbody>
+        <tr><td>预计租金</td><td>用户输入</td><td>{currency.format(monthlyRent)}</td><td>{currency.format(result.annualRent)}</td></tr>
+        <tr><td>物业费</td><td>{currency.format(serviceRate)} / ft² / 年 × {area.toLocaleString()} ft²</td><td>{currency.format(serviceCharge / 12)}</td><td>{currency.format(serviceCharge)}</td></tr>
+        <tr><td>地租</td><td>用户输入</td><td>{currency.format(groundRent / 12)}</td><td>{currency.format(groundRent)}</td></tr>
+        <tr><td>租赁管理费</td><td>年租金 × {managementRate.toFixed(2)}%</td><td>{currency.format(managementFee / 12)}</td><td>{currency.format(managementFee)}</td></tr>
+        <tr className="subtotal"><td>运营成本合计</td><td>物业费 + 地租 + 租赁管理费</td><td>{currency.format(operatingCosts / 12)}</td><td>{currency.format(operatingCosts)}</td></tr>
+        <tr className="grand-total"><td>净经营收益 NOI</td><td>年度租金 − 运营成本</td><td>{currency.format(result.noi / 12)}</td><td>{currency.format(result.noi)}</td></tr>
+      </tbody></table></div>
+
+      <div className="print-section"><h4>05 · 收益与现金流指标</h4><table className="print-data-table compact"><tbody>
+        <tr><th>租金毛回报率</th><td>{percent.format(result.grossYield)}</td><th>租金净回报率</th><td>{percent.format(result.netYield)}</td></tr>
+        <tr><th>年度租金收入</th><td>{currency.format(result.annualRent)}</td><th>年度运营成本</th><td>{currency.format(operatingCosts)}</td></tr>
+        <tr><th>净经营收益 NOI</th><td>{currency.format(result.noi)}</td><th>年度偿债</th><td>{currency.format(result.annualDebt)}</td></tr>
+        <tr><th>税前年净现金流</th><td className={result.netCash >= 0 ? 'value-positive' : 'value-negative'}>{currency.format(result.netCash)}</td><th>现金回报率</th><td>{percent.format(result.cashReturn)}</td></tr>
+      </tbody></table></div>
+
+      <div className="print-section print-page-break"><h4>06 · 付款计划明细</h4><table className="print-data-table amounts"><thead><tr><th>付款阶段</th><th>比例</th><th>应付房款</th><th>贷款抵扣</th><th>现金支付</th><th>人民币参考</th></tr></thead><tbody>
+        <tr><td>预定金</td><td>—</td><td>—</td><td>—</td><td>{currency.format(deposit)}</td><td>{cny.format(deposit * exchangeRate)}</td></tr>
+        {paymentDetails.map((item, index) => <tr key={index}><td>{item.label}</td><td>{item.ratio.toFixed(2)}%</td><td>{currency.format(item.due)}</td><td>{item.loanApplied ? currency.format(item.loanApplied) : '—'}</td><td>{currency.format(item.cash)}</td><td>{cny.format(item.cash * exchangeRate)}</td></tr>)}
+        <tr className="grand-total"><td>合计</td><td>{paymentTotal.toFixed(2)}%</td><td>{currency.format(result.price)}</td><td>{currency.format(result.loan)}</td><td>{currency.format(paymentCashTotal)}</td><td>{cny.format(paymentCashTotal * exchangeRate)}</td></tr>
+      </tbody></table></div>
+
+      <div className="print-section"><h4>07 · 核对结果</h4><div className="print-checks">
+        <div className={paymentOk ? 'ok' : 'bad'}><b>{paymentOk ? '✓' : '!'}</b><span>付款比例合计</span><strong>{paymentTotal.toFixed(2)}%</strong><small>{paymentOk ? '比例合计正确' : '应调整至 100%'}</small></div>
+        <div className={loanOk ? 'ok' : 'bad'}><b>{loanOk ? '✓' : '!'}</b><span>尾款贷款抵扣</span><strong>{currency.format(finalPayment)}</strong><small>{loanOk ? '贷款可在尾款中抵扣' : '贷款金额超过尾款'}</small></div>
+        <div className={fundingOk ? 'ok' : 'bad'}><b>{fundingOk ? '✓' : '!'}</b><span>房款资金核对</span><strong>{currency.format(paymentCashTotal + result.loan)}</strong><small>{fundingOk ? '现金 + 贷款 = 房款' : '资金安排与房款不一致'}</small></div>
+      </div></div>
+
+      <div className="print-method"><h4>计算口径与说明</h4><p>人民币金额仅按本报告汇率换算，实际结算以银行或支付机构汇率为准。印花税按当前工具内置的英国住宅 SDLT 规则估算；特殊持有结构、公司购房、混合用途、非自然人或其他复杂交易可能适用不同规则。</p><p>本报告用于初步比较，不构成税务、法律、贷款或投资建议。所有税费、贷款条件、租金及持有成本请在交易前由英国律师、税务师、贷款顾问及物业管理方复核。</p><p className="print-source">税率参考：HMRC · 英国住宅印花税（工具口径更新基准：2025-04-01）</p></div>
     </section>
   </main>;
 }
