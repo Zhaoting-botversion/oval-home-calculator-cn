@@ -2,7 +2,10 @@
 
 一个面向中文用户的英国住宅购房测算工具，可估算购房成本、SDLT 印花税、贷款月供、租金回报、现金流和分期付款安排，并支持导出完整 PDF 报告。
 
-在线使用：[oval-home-calculator-cn.patricia3789906.chatgpt.site](https://oval-home-calculator-cn.patricia3789906.chatgpt.site)
+在线使用：
+
+- GitHub Pages：[zhaoting-botversion.github.io/oval-home-calculator-cn](https://zhaoting-botversion.github.io/oval-home-calculator-cn/)
+- Sites 版本：[oval-home-calculator-cn.patricia3789906.chatgpt.site](https://oval-home-calculator-cn.patricia3789906.chatgpt.site)
 
 ## 功能
 
