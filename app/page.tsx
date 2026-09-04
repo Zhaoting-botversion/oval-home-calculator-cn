@@ -36,6 +36,15 @@ function Metric({ label, value, secondary, icon: Icon, featured = false }: { lab
   return <div className={`metric ${featured ? 'metric-featured' : ''}`}><div className="metric-icon"><Icon /></div><div><p>{label}</p><strong>{value}</strong>{secondary && <small>{secondary}</small>}</div></div>;
 }
 
+function GrowthScenarios({ price, totalCost, noi, exchangeRate }: { price: number; totalCost: number; noi: number; exchangeRate: number }) {
+  return <section className="growth-scenarios"><h3>房价涨跌情景 <small>One-year price scenarios</small></h3><p>一年期假设分析 · 不含贷款影响 · 非市场预测</p><div className="growth-scroll"><table><thead><tr><th scope="col">房价年变化</th><th scope="col">一年后房价 GBP</th><th scope="col">房价变化 GBP / CNY</th><th scope="col">综合收益 GBP</th><th scope="col">综合回报率</th></tr></thead><tbody>{[-5, 0, 2, 5, 7].map(rate => {
+    const change = price * rate / 100;
+    const combined = noi + change;
+    const valid = Number.isFinite(totalCost) && totalCost > 0 && Number.isFinite(combined);
+    return <tr key={rate} className={rate === 0 ? 'growth-baseline' : ''}><th scope="row">{rate > 0 ? '+' : ''}{rate}%{rate === 0 && <small>房价不变</small>}</th><td>{currency.format(price + change)}</td><td>{currency.format(change)}<small>{cny.format(change * exchangeRate)}</small></td><td>{currency.format(combined)}</td><td className={combined < 0 ? 'growth-loss' : ''}>{valid ? percent.format(combined / totalCost) : '不适用'}</td></tr>;
+  })}</tbody></table></div><div className="growth-notes"><p>房价变化金额 = 折后房款 × 假设涨跌幅；综合收益 = 年度净经营收益 NOI + 房价变化金额；综合回报率 = 综合收益 ÷ 购房总支出。</p><p>以上均为税前、融资前的假设值，不是现金回报率或出售后的实际收益。账面增值不计入年度净现金流；未扣除贷款利息、出售费用、相关税费及其他未纳入模型的费用。假设持有满一年、租金和运营成本不变、汇率不变；房价可能下跌，实际结果可能不同。</p></div></section>;
+}
+
 type OverviewGroup = { label: string; english: string; rows: { label: string; value: number | string; highlight?: boolean }[] };
 function CostOverview({ groups, exchangeRate }: { groups: OverviewGroup[]; exchangeRate: number }) {
   return <table className="overview-table"><colgroup><col className="overview-category" /><col /><col className="overview-amount" /><col className="overview-amount" /></colgroup><thead><tr><th>分类</th><th>资金项目 / Cost breakdown</th><th>英镑 GBP</th><th>人民币 CNY</th></tr></thead>{groups.map(group => <tbody key={group.label}>{group.rows.map((row, index) => <tr key={row.label} className={row.highlight ? 'overview-highlight' : ''}>{index === 0 && <th scope="rowgroup" rowSpan={group.rows.length} className="overview-group">{group.label}<small>{group.english}</small></th>}<th scope="row">{row.label}</th>{typeof row.value === 'number' ? <><td>{currency.format(row.value)}</td><td>{cny.format(row.value * exchangeRate)}</td></> : <td colSpan={2} className="overview-text">{row.value}</td>}</tr>)}</tbody>)}</table>;
@@ -147,6 +156,7 @@ export default function Home() {
         <div className="detail-card payment-card"><div className="detail-title"><span><Landmark />付款计划</span><small>贷款默认在尾款抵扣</small></div><div className="check-row"><span className={paymentOk ? 'check-ok' : 'check-bad'}>{paymentOk ? <CheckCircle2 /> : <CircleAlert />}比例合计 {paymentTotal.toFixed(1)}%</span><span className={loanOk ? 'check-ok' : 'check-bad'}>{loanOk ? <CheckCircle2 /> : <CircleAlert />}{loanOk ? '贷款可在尾款抵扣' : '贷款超过尾款'}</span></div><div className="payment-table"><div className="payment-row header"><span>阶段</span><span>比例</span><span>现金支付</span><span>人民币参考</span></div><div className="payment-row"><span>预定金</span><span>—</span><b>{currency.format(deposit)}</b><small>{cny.format(deposit * exchangeRate)}</small></div>{payments.map((ratio, index) => { const due = result.price * ratio / 100; const loanApplied = index === 5 ? Math.min(result.loan, due) : 0; const cash = Math.max(0, due - loanApplied - (index === 0 ? deposit : 0)); return <div className="payment-row" key={index}><span>{index === 5 ? '尾款' : `第 ${index + 1} 笔`}</span><span className="ratio-input"><Input type="number" min={0} value={ratio} onChange={(e) => setPayments((current) => current.map((item, i) => i === index ? Number(e.target.value) : item))} /><small>%</small></span><b>{currency.format(cash)}</b><small>{cny.format(cash * exchangeRate)}</small></div>; })}</div></div>
       </section>
       <details className="overview-preview"><summary>查看资金分解总览 <span>Cost Breakdown · 与 PDF 首页同步</span></summary><div className="overview-scroll"><CostOverview groups={overviewGroups} exchangeRate={exchangeRate} /></div><p>预定金抵扣首笔房款，不重复计入购房总支出。下方收益指标已注明各自分母，不能直接混用。</p></details>
+      <GrowthScenarios price={result.price} totalCost={result.totalCost} noi={result.noi} exchangeRate={exchangeRate} />
       <footer><p>用于初步比较，不构成税务、法律、贷款或投资建议。复杂交易请由英国律师、税务师及贷款顾问复核。</p><a href="https://www.gov.uk/government/publications/budget-2025-overview-of-tax-legislation-and-rates-ootlar/annex-a-rates-and-allowances" target="_blank" rel="noreferrer">HMRC 税率来源</a></footer>
     </div>
     <section className="print-report">
@@ -213,6 +223,7 @@ export default function Home() {
         <div className={fundingOk ? 'ok' : 'bad'}><b>{fundingOk ? '✓' : '!'}</b><span>房款资金核对</span><strong>{currency.format(paymentCashTotal + result.loan)}</strong><small>{fundingOk ? '现金 + 贷款 = 房款' : '资金安排与房款不一致'}</small></div>
       </div></div>
 
+      <GrowthScenarios price={result.price} totalCost={result.totalCost} noi={result.noi} exchangeRate={exchangeRate} />
       <div className="print-method"><h4>计算口径与说明</h4><p>人民币金额仅按本报告汇率换算，实际结算以银行或支付机构汇率为准。印花税按当前工具内置的英国住宅 SDLT 规则估算；特殊持有结构、公司购房、混合用途、非自然人或其他复杂交易可能适用不同规则。</p><p>本报告用于初步比较，不构成税务、法律、贷款或投资建议。所有税费、贷款条件、租金及持有成本请在交易前由英国律师、税务师、贷款顾问及物业管理方复核。</p><p className="print-source">税率参考：HMRC · 英国住宅印花税（工具口径更新基准：2025-04-01）</p></div>
     </section>
   </main>;
