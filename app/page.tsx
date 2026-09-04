@@ -36,6 +36,11 @@ function Metric({ label, value, secondary, icon: Icon, featured = false }: { lab
   return <div className={`metric ${featured ? 'metric-featured' : ''}`}><div className="metric-icon"><Icon /></div><div><p>{label}</p><strong>{value}</strong>{secondary && <small>{secondary}</small>}</div></div>;
 }
 
+type OverviewGroup = { label: string; english: string; rows: { label: string; value: number | string; highlight?: boolean }[] };
+function CostOverview({ groups, exchangeRate }: { groups: OverviewGroup[]; exchangeRate: number }) {
+  return <table className="overview-table"><colgroup><col className="overview-category" /><col /><col className="overview-amount" /><col className="overview-amount" /></colgroup><thead><tr><th>分类</th><th>资金项目 / Cost breakdown</th><th>英镑 GBP</th><th>人民币 CNY</th></tr></thead>{groups.map(group => <tbody key={group.label}>{group.rows.map((row, index) => <tr key={row.label} className={row.highlight ? 'overview-highlight' : ''}>{index === 0 && <th scope="rowgroup" rowSpan={group.rows.length} className="overview-group">{group.label}<small>{group.english}</small></th>}<th scope="row">{row.label}</th>{typeof row.value === 'number' ? <><td>{currency.format(row.value)}</td><td>{cny.format(row.value * exchangeRate)}</td></> : <td colSpan={2} className="overview-text">{row.value}</td>}</tr>)}</tbody>)}</table>;
+}
+
 export default function Home() {
   const [project, setProject] = useState('Oval Village'); const [unit, setUnit] = useState('D1.4.4');
   const [area, setArea] = useState(764); const [originalPrice, setOriginalPrice] = useState(935_204.08);
@@ -69,6 +74,49 @@ export default function Home() {
   const paymentDetails = payments.map((ratio, index) => { const due = result.price * ratio / 100; const loanApplied = index === 5 ? Math.min(result.loan, due) : 0; const cash = Math.max(0, due - loanApplied - (index === 0 ? deposit : 0)); return { label: index === 5 ? '尾款' : `第 ${index + 1} 笔`, ratio, due, loanApplied, cash }; });
   const paymentCashTotal = deposit + paymentDetails.reduce((sum, item) => sum + item.cash, 0);
   const fundingOk = Math.abs(paymentCashTotal + result.loan - result.price) < 1;
+  const overviewGroups: OverviewGroup[] = [
+    { label: '房产信息', english: 'Property information', rows: [
+      { label: '项目 / 房号', value: `${project || '未填写'} · ${unit || '未填写'}` },
+      { label: '套内面积', value: `${area.toLocaleString()} ft² / ${(area * 0.09290304).toFixed(1)} m²` },
+      { label: '买家身份 / 购房性质', value: `${resident ? '英国居民' : '非英国居民'} · ${purchaseTypeLabel}` },
+      { label: '房屋原价', value: originalPrice },
+      { label: `折后房款（折扣 ${discount}%）`, value: result.price, highlight: true },
+    ] },
+    { label: '付款与融资', english: 'Payment & finance', rows: [
+      { label: '预定金（包含在房款内）', value: deposit },
+      { label: '首笔房款现金（已扣预定金）', value: paymentDetails[0].cash },
+      { label: '中间四笔房款现金合计', value: paymentDetails.slice(1, 5).reduce((sum, row) => sum + row.cash, 0) },
+      { label: '尾款现金（已扣可抵贷款）', value: paymentDetails[5].cash },
+      { label: `贷款金额（${loanRatio}% · ${interestRate}% · ${loanYears}年）`, value: result.loan },
+    ] },
+    { label: '购房一次性费用', english: 'One-off costs', rows: [
+      { label: '印花税 SDLT', value: result.sdlt },
+      { label: '律师费及 VAT', value: legalFee },
+      { label: '其他杂费 / 土地注册费', value: otherFee + registryFee },
+      { label: '其他款项合计（不含房款）', value: result.totalCost - result.price, highlight: true },
+      { label: '购房总支出（房款 + 其他款项）', value: result.totalCost, highlight: true },
+      { label: '需投入现金（总支出 − 贷款）', value: result.cashNeeded, highlight: true },
+    ] },
+    { label: '出租持有费用', english: 'Annual running costs', rows: [
+      { label: `物业费 / 年（£${serviceRate} / ft²）`, value: serviceCharge },
+      { label: '地租 / 年', value: groundRent },
+      { label: `租赁管理费 / 年（年租金的 ${managementRate}%）`, value: managementFee },
+      { label: '年度运营成本合计', value: operatingCosts, highlight: true },
+    ] },
+    { label: '租金与现金流', english: 'Rental & cash flow', rows: [
+      { label: '预计周租（年租金 ÷ 52）', value: result.annualRent / 52 },
+      { label: '预计月租', value: monthlyRent },
+      { label: '预计年租金（月租 × 12）', value: result.annualRent },
+      { label: '净经营收益 NOI / 年（偿债前）', value: result.noi, highlight: true },
+      { label: '年度偿债（月供 × 12）', value: result.annualDebt },
+      { label: '税前年净现金流（NOI − 年度偿债）', value: result.netCash, highlight: true },
+    ] },
+    { label: '收益口径', english: 'Return measures', rows: [
+      { label: '净经营回报率（NOI ÷ 购房总支出）', value: percent.format(result.totalCost ? result.noi / result.totalCost : 0) },
+      { label: '租金净回报率（NOI ÷ 折后房款）', value: percent.format(result.netYield) },
+      { label: '现金回报率（净现金流 ÷ 投入现金）', value: percent.format(result.cashReturn) },
+    ] },
+  ];
   const reset = () => { setProject('Oval Village'); setUnit('D1.4.4'); setArea(764); setOriginalPrice(935_204.08); setDiscount(2); setExchangeRate(9.836); setResident(true); setPurchaseType('main'); setLoanRatio(50); setInterestRate(4.85); setLoanYears(30); setRepaymentType('repayment'); setDeposit(5_000); setLegalFee(3_000); setOtherFee(1_000); setRegistryFee(500); setServiceRate(6.5); setGroundRent(0); setMonthlyRent(3_243); setManagementRate(12); setPayments([10, 10, 5, 0, 0, 75]); };
 
   return <main>
@@ -98,9 +146,16 @@ export default function Home() {
         <div className="detail-card"><div className="detail-title"><span><Banknote />费用与租赁假设</span><small>影响成本与净收益</small></div><div className="compact-fields"><NumberField label="预定金" value={deposit} onChange={setDeposit} suffix="GBP" /><NumberField label="律师费及 VAT" value={legalFee} onChange={setLegalFee} suffix="GBP" /><NumberField label="其他杂费" value={otherFee} onChange={setOtherFee} suffix="GBP" /><NumberField label="土地注册费" value={registryFee} onChange={setRegistryFee} suffix="GBP" /><NumberField label="物业费" value={serviceRate} onChange={setServiceRate} suffix="GBP/ft²/年" step={0.1} /><NumberField label="地租" value={groundRent} onChange={setGroundRent} suffix="GBP/年" /><NumberField label="预计月租" value={monthlyRent} onChange={setMonthlyRent} suffix="GBP" /><NumberField label="租赁管理费" value={managementRate} onChange={setManagementRate} suffix="%" step={0.5} /></div></div>
         <div className="detail-card payment-card"><div className="detail-title"><span><Landmark />付款计划</span><small>贷款默认在尾款抵扣</small></div><div className="check-row"><span className={paymentOk ? 'check-ok' : 'check-bad'}>{paymentOk ? <CheckCircle2 /> : <CircleAlert />}比例合计 {paymentTotal.toFixed(1)}%</span><span className={loanOk ? 'check-ok' : 'check-bad'}>{loanOk ? <CheckCircle2 /> : <CircleAlert />}{loanOk ? '贷款可在尾款抵扣' : '贷款超过尾款'}</span></div><div className="payment-table"><div className="payment-row header"><span>阶段</span><span>比例</span><span>现金支付</span><span>人民币参考</span></div><div className="payment-row"><span>预定金</span><span>—</span><b>{currency.format(deposit)}</b><small>{cny.format(deposit * exchangeRate)}</small></div>{payments.map((ratio, index) => { const due = result.price * ratio / 100; const loanApplied = index === 5 ? Math.min(result.loan, due) : 0; const cash = Math.max(0, due - loanApplied - (index === 0 ? deposit : 0)); return <div className="payment-row" key={index}><span>{index === 5 ? '尾款' : `第 ${index + 1} 笔`}</span><span className="ratio-input"><Input type="number" min={0} value={ratio} onChange={(e) => setPayments((current) => current.map((item, i) => i === index ? Number(e.target.value) : item))} /><small>%</small></span><b>{currency.format(cash)}</b><small>{cny.format(cash * exchangeRate)}</small></div>; })}</div></div>
       </section>
+      <details className="overview-preview"><summary>查看资金分解总览 <span>Cost Breakdown · 与 PDF 首页同步</span></summary><div className="overview-scroll"><CostOverview groups={overviewGroups} exchangeRate={exchangeRate} /></div><p>预定金抵扣首笔房款，不重复计入购房总支出。下方收益指标已注明各自分母，不能直接混用。</p></details>
       <footer><p>用于初步比较，不构成税务、法律、贷款或投资建议。复杂交易请由英国律师、税务师及贷款顾问复核。</p><a href="https://www.gov.uk/government/publications/budget-2025-overview-of-tax-legislation-and-rates-ootlar/annex-a-rates-and-allowances" target="_blank" rel="noreferrer">HMRC 税率来源</a></footer>
     </div>
     <section className="print-report">
+      <section className="overview-cover">
+        <div className="overview-title"><div><p>UK PROPERTY PLANNER</p><h2>购房资金与收益分解表</h2><span>Cost Breakdown & Rental Return</span></div><div><b>{project || '未命名项目'}</b><span>{unit || '未填写房号'}</span><span>{new Date().toLocaleDateString('zh-CN')}</span></div></div>
+        <div className="overview-caption">测算汇率：1 GBP = {exchangeRate.toFixed(3)} CNY <span>金额按显示精度四舍五入 · 完整明细见后页</span></div>
+        <CostOverview groups={overviewGroups} exchangeRate={exchangeRate} />
+        <div className="overview-caveats"><b>{paymentOk && loanOk && fundingOk ? '付款计划核对通过' : '注意：付款计划存在不一致，请先核对后页警示'}</b><p>预定金已在首笔房款中抵扣；各期金额和贷款抵扣详见付款明细。人民币为按上述汇率换算的参考值。</p><p>当前年度运营成本仅含物业费、地租和租赁管理费，未另计空置、维修、保险、市政税、所得税及出售成本。净经营收益不等于税后利润；现金流中的偿债可能包含归还本金。</p><p>本报告为假设条件下的估算，不构成税务、法律、贷款或投资建议，亦不代表保证收益。</p></div>
+      </section>
       <div className="print-report-head"><div><p>UK PROPERTY PLANNER · FULL CALCULATION</p><h2>英国买房完整测算报告</h2></div><span>生成日期：{new Date().toLocaleDateString('zh-CN')}</span></div>
       <div className="print-property"><div><p>测算项目</p><h3>{project || '未命名项目'} · {unit || '未填写房号'}</h3></div><div className="print-property-total"><span>购房总成本</span><b>{currency.format(result.totalCost)}</b><small>{cny.format(result.totalCost * exchangeRate)}</small></div></div>
 
