@@ -1,6 +1,6 @@
 'use client';
 
-import { type ReactNode, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { BadgePoundSterling, Banknote, Building2, CheckCircle2, CircleAlert, FileDown, HomeIcon, Landmark, RefreshCcw, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,8 +28,28 @@ function calculateSdlt(price: number, resident: boolean, purchaseType: PurchaseT
   }, 0);
 }
 
+function EditableNumberInput({ value, onChange, step = 1, ariaLabel }: { value: number; onChange: (value: number) => void; step?: number; ariaLabel: string }) {
+  const safeValue = Number.isFinite(value) ? value : 0;
+  const [draft, setDraft] = useState(String(safeValue));
+  const [editing, setEditing] = useState(false);
+
+  useEffect(() => {
+    if (!editing) setDraft(String(safeValue));
+  }, [editing, safeValue]);
+
+  const commit = () => {
+    const parsed = draft.trim() === '' ? 0 : Number(draft);
+    const next = Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+    setEditing(false);
+    setDraft(String(next));
+    onChange(next);
+  };
+
+  return <Input type="number" value={draft} step={step} min={0} aria-label={ariaLabel} onFocus={(e) => { setEditing(true); e.currentTarget.select(); }} onChange={(e) => { const next = e.target.value; setDraft(next); if (next.trim() !== '' && Number.isFinite(Number(next))) onChange(Math.max(0, Number(next))); }} onBlur={commit} />;
+}
+
 function NumberField({ label, value, onChange, suffix, step = 1 }: { label: string; value: number; onChange: (value: number) => void; suffix?: string; step?: number }) {
-  return <label className="field-row"><span>{label}</span><span className="input-shell"><Input type="number" value={Number.isFinite(value) ? value : 0} step={step} min={0} onChange={(e) => onChange(Number(e.target.value))} aria-label={label} />{suffix && <small>{suffix}</small>}</span></label>;
+  return <label className="field-row"><span>{label}</span><span className="input-shell"><EditableNumberInput value={value} onChange={onChange} step={step} ariaLabel={label} />{suffix && <small>{suffix}</small>}</span></label>;
 }
 
 function Metric({ label, value, secondary, icon: Icon, featured = false }: { label: string; value: string; secondary?: ReactNode; icon: typeof HomeIcon; featured?: boolean }) {
@@ -154,7 +174,7 @@ export default function Home() {
       <section className="detail-grid">
         <div className="detail-card"><div className="detail-title"><span><Banknote />费用假设</span><small>一次性费用与持有成本</small></div><div className="compact-fields"><NumberField label="预定金" value={deposit} onChange={setDeposit} suffix="GBP" /><NumberField label="律师费及 VAT" value={legalFee} onChange={setLegalFee} suffix="GBP" /><NumberField label="其他杂费" value={otherFee} onChange={setOtherFee} suffix="GBP" /><NumberField label="土地注册费" value={registryFee} onChange={setRegistryFee} suffix="GBP" /><NumberField label="物业费" value={serviceRate} onChange={setServiceRate} suffix="GBP/ft²/年" step={0.1} /><NumberField label="地租" value={groundRent} onChange={setGroundRent} suffix="GBP/年" /></div><div className="reference-rate"><div><b>25 Cuba Street 参考物业费</b><small>约 £7.50 / ft² / 年</small></div><Button type="button" variant="outline" size="sm" onClick={() => setServiceRate(7.5)}>{Math.abs(serviceRate - 7.5) < 0.001 ? '已套用' : '一键套用'}</Button></div></div>
         <div className="detail-card rent-card"><div className="detail-title"><span><TrendingUp />租金与收益假设</span><small>可按月租或目标毛回报设置</small></div><div className="rent-fields"><NumberField label="预计月租金" value={monthlyRent} onChange={setMonthlyRent} suffix="GBP/月" step={50} /><NumberField label="目标毛租金回报率" value={Number((result.grossYield * 100).toFixed(2))} onChange={(value) => setMonthlyRent(result.price > 0 ? Math.round(result.price * value / 100 / 12) : 0)} suffix="%" step={0.1} /><NumberField label="租赁管理费" value={managementRate} onChange={setManagementRate} suffix="年租金 %" step={0.5} /></div><div className="rent-summary"><div><span>预计周租</span><b>{currency.format(result.annualRent / 52)}</b></div><div><span>预计年租金</span><b>{currency.format(result.annualRent)}</b></div><div><span>当前净回报率</span><b>{percent.format(result.netYield)}</b></div></div><p className="rent-help">修改月租金会自动更新毛回报率；修改目标毛回报率则会反算月租金。净回报率会同时扣除物业费、地租及租赁管理费。</p></div>
-        <div className="detail-card payment-card"><div className="detail-title"><span><Landmark />付款计划</span><small>贷款默认在尾款抵扣</small></div><div className="check-row"><span className={paymentOk ? 'check-ok' : 'check-bad'}>{paymentOk ? <CheckCircle2 /> : <CircleAlert />}比例合计 {paymentTotal.toFixed(1)}%</span><span className={loanOk ? 'check-ok' : 'check-bad'}>{loanOk ? <CheckCircle2 /> : <CircleAlert />}{loanOk ? '贷款可在尾款抵扣' : '贷款超过尾款'}</span></div><div className="payment-table"><div className="payment-row header"><span>阶段</span><span>比例</span><span>现金支付</span><span>人民币参考</span></div><div className="payment-row"><span>预定金</span><span>—</span><b>{currency.format(deposit)}</b><small>{cny.format(deposit * exchangeRate)}</small></div>{payments.map((ratio, index) => { const due = result.price * ratio / 100; const loanApplied = index === 5 ? Math.min(result.loan, due) : 0; const cash = Math.max(0, due - loanApplied - (index === 0 ? deposit : 0)); return <div className="payment-row" key={index}><span>{index === 5 ? '尾款' : `第 ${index + 1} 笔`}</span><span className="ratio-input"><Input type="number" min={0} value={ratio} onChange={(e) => setPayments((current) => current.map((item, i) => i === index ? Number(e.target.value) : item))} /><small>%</small></span><b>{currency.format(cash)}</b><small>{cny.format(cash * exchangeRate)}</small></div>; })}</div></div>
+        <div className="detail-card payment-card"><div className="detail-title"><span><Landmark />付款计划</span><small>贷款默认在尾款抵扣</small></div><div className="check-row"><span className={paymentOk ? 'check-ok' : 'check-bad'}>{paymentOk ? <CheckCircle2 /> : <CircleAlert />}比例合计 {paymentTotal.toFixed(1)}%</span><span className={loanOk ? 'check-ok' : 'check-bad'}>{loanOk ? <CheckCircle2 /> : <CircleAlert />}{loanOk ? '贷款可在尾款抵扣' : '贷款超过尾款'}</span></div><div className="payment-table"><div className="payment-row header"><span>阶段</span><span>比例</span><span>现金支付</span><span>人民币参考</span></div><div className="payment-row"><span>预定金</span><span>—</span><b>{currency.format(deposit)}</b><small>{cny.format(deposit * exchangeRate)}</small></div>{payments.map((ratio, index) => { const due = result.price * ratio / 100; const loanApplied = index === 5 ? Math.min(result.loan, due) : 0; const cash = Math.max(0, due - loanApplied - (index === 0 ? deposit : 0)); return <div className="payment-row" key={index}><span>{index === 5 ? '尾款' : `第 ${index + 1} 笔`}</span><span className="ratio-input"><EditableNumberInput value={ratio} onChange={(value) => setPayments((current) => current.map((item, i) => i === index ? value : item))} ariaLabel={`${index === 5 ? '尾款' : `第 ${index + 1} 笔`}比例`} /><small>%</small></span><b>{currency.format(cash)}</b><small>{cny.format(cash * exchangeRate)}</small></div>; })}</div></div>
       </section>
       <details className="overview-preview"><summary>查看资金分解总览 <span>Cost Breakdown · 与 PDF 首页同步</span></summary><div className="overview-scroll"><CostOverview groups={overviewGroups} exchangeRate={exchangeRate} /></div><p>预定金抵扣首笔房款，不重复计入购房总支出。下方收益指标已注明各自分母，不能直接混用。</p></details>
       <GrowthScenarios price={result.price} totalCost={result.totalCost} noi={result.noi} exchangeRate={exchangeRate} />
