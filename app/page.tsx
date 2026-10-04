@@ -147,11 +147,18 @@ export default function Home() {
     ] },
   ];
   const reset = () => { setProject('Oval Village'); setUnit('D1.4.4'); setArea(764); setOriginalPrice(935_204.08); setDiscount(2); setExchangeRate(9.836); setResident(true); setPurchaseType('main'); setLoanRatio(50); setInterestRate(4.85); setLoanYears(30); setRepaymentType('repayment'); setDeposit(5_000); setLegalFee(3_000); setOtherFee(1_000); setRegistryFee(500); setServiceRate(6.5); setGroundRent(0); setMonthlyRent(3_243); setManagementRate(12); setPayments([10, 10, 5, 0, 0, 75]); };
+  const printReport = () => {
+    const cleanName = (value: string, fallback: string) => value.trim().replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ') || fallback;
+    const originalTitle = document.title;
+    document.title = `${cleanName(project, '未命名项目')}-${cleanName(unit, '未填写房号')}-买房测算`;
+    window.addEventListener('afterprint', () => { document.title = originalTitle; }, { once: true });
+    window.print();
+  };
 
   return <main>
-    <header className="topbar"><div className="brand-mark"><Building2 /></div><div><p className="eyebrow">UK PROPERTY PLANNER</p><h1>英国买房测算工具</h1></div><div className="top-actions"><Button variant="outline" onClick={() => window.print()}><FileDown />导出 PDF</Button><Button variant="outline" onClick={reset}><RefreshCcw />恢复 Oval 示例</Button></div></header>
+    <header className="topbar"><div className="brand-mark"><Building2 /></div><div><p className="eyebrow">UK PROPERTY PLANNER</p><h1>买房测算工具</h1></div><div className="top-actions"><Button variant="outline" onClick={printReport}><FileDown />导出 PDF</Button><Button variant="outline" onClick={reset}><RefreshCcw />恢复默认示例</Button></div></header>
     <div className="page-shell">
-      <section className="intro"><div><span className="status-pill">Oval 参考版 · 即时计算</span><h2>把房价、税费、贷款与租金<br />放进同一张决策图里</h2></div><p>修改左侧参数，结果与付款计划会即时更新。汇率口径为 <b>1 GBP = X CNY</b>。</p></section>
+      <section className="intro"><div><span className="status-pill">买房测算 · 即时计算</span><h2>把房价、税费、贷款与租金<br />放进同一张决策图里</h2></div><p>修改左侧参数，结果与付款计划会即时更新。汇率口径为 <b>1 GBP = X CNY</b>。</p></section>
       <div className="workspace">
         <aside className="control-panel">
           <div className="panel-heading"><div><HomeIcon /><span>房产与买家</span></div><small>蓝色区域为输入项</small></div>
@@ -182,7 +189,7 @@ export default function Home() {
     </div>
     <section className="print-report">
       <section className="overview-cover">
-        <div className="overview-title"><div><p>UK PROPERTY PLANNER</p><h2>购房资金与收益分解表</h2><span>Cost Breakdown & Rental Return</span></div><div><b>{project || '未命名项目'}</b><span>{unit || '未填写房号'}</span><span>{new Date().toLocaleDateString('zh-CN')}</span></div></div>
+        <div className="overview-title"><div><p>UK PROPERTY PLANNER</p><h2>购房资金与收益分解表</h2><span>Cost Breakdown & Rental Return</span></div><div><b>{project || '未命名项目'} · {unit || '未填写房号'}</b><span>测算名称</span><span>{new Date().toLocaleDateString('zh-CN')}</span></div></div>
         <div className="overview-caption">测算汇率：1 GBP = {exchangeRate.toFixed(3)} CNY <span>金额按显示精度四舍五入 · 完整明细见后页</span></div>
         <CostOverview groups={overviewGroups} exchangeRate={exchangeRate} />
         <div className="overview-caveats"><b>{paymentOk && loanOk && fundingOk ? '付款计划核对通过' : '注意：付款计划存在不一致，请先核对后页警示'}</b><p>预定金已在首笔房款中抵扣；各期金额和贷款抵扣详见付款明细。人民币为按上述汇率换算的参考值。</p><p>当前年度运营成本仅含物业费、地租和租赁管理费，未另计空置、维修、保险、市政税、所得税及出售成本。净经营收益不等于税后利润；现金流中的偿债可能包含归还本金。</p><p>本报告为假设条件下的估算，不构成税务、法律、贷款或投资建议，亦不代表保证收益。</p></div>
